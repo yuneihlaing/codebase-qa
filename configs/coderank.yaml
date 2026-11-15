@@ -1,0 +1,9 @@
+# Alternative embedder for the retrieval comparison (scripts/compare_retrieval.py):
+# a small code-specialised model (137M). Needs its own query prefix and trust_remote_code.
+extends: default.yaml
+embed:
+  model: nomic-ai/CodeRankEmbed
+  trust_remote_code: true
+  max_seq_length: 1024
+  batch_size: 32
+  query_prompt: "Represent this query for searching relevant code: "

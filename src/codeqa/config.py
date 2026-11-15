@@ -27,12 +27,18 @@ class ChunkConfig:
     max_file_bytes: int = 1_000_000
 
 
+QWEN3_QUERY_PROMPT = ("Instruct: Given a question about a Python code repository, retrieve the code or "
+                      "documentation that answers it\nQuery:")
+
+
 @dataclass
 class EmbedConfig:
-    model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    max_chars: int = 2000
-    batch_size: int = 64
+    model: str = "Qwen/Qwen3-Embedding-0.6B"
+    max_chars: int = 4000                 # characters of "<path> <name>\n<code>" embedded per chunk (99% of Flask's chunks fit)
+    max_seq_length: int | None = 1024     # token cap inside the embedder (None = the model's own limit)
+    batch_size: int = 16
     trust_remote_code: bool = False
+    query_prompt: str = QWEN3_QUERY_PROMPT  # prefixed to questions only; "" = embed questions as they are
 
 
 @dataclass

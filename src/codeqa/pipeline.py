@@ -62,3 +62,11 @@ def run_strategy(retriever: Retriever, llm: LLM, strategy: str, question: str, c
                  ) -> tuple[Retrieval, str]:
     r = retriever.retrieve(strategy, question)
     return r, answer_question(llm, question, r.chunks, cfg)
+
+
+def retrieval_record(question: dict, r: Retrieval, per_chunk_chars: int) -> dict:
+    """The fields eval.deterministic.score_record needs, without generating an answer (retrieval-only scoring)."""
+    return {"answer": "", "reference": question["reference"],
+            "retrieved": [{"path": c.path, "start": c.start, "end": c.end, "origin": o}
+                          for c, o in zip(r.chunks, r.origins)],
+            "retrieved_text": format_context(r.chunks, per_chunk_chars)}

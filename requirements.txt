@@ -4,13 +4,13 @@ pyyaml
 tqdm
 pytest
 
-# Retrieval
-sentence-transformers
+# Retrieval (Qwen3-Embedding needs sentence-transformers>=2.7 and transformers>=4.51)
+sentence-transformers>=2.7
 faiss-cpu          # optional: code falls back to NumPy if missing
 
 # Local generator LLM (GPU recommended; Colab T4 works for Qwen2.5-Coder-3B)
 torch
-transformers
+transformers>=4.51
 accelerate
 
 # SWE-QA from HuggingFace (optional: the questions also ship in data/swe_qa/)

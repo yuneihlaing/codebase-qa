@@ -13,13 +13,16 @@ chunk:
   include_module_code: false   # ablation: also index top-level statements that sit after the first def
 
 embed:
-  model: sentence-transformers/all-MiniLM-L6-v2   # 'hashing' = offline bag-of-subwords embedder (tests/smoke runs)
-  max_chars: 2000              # note: MiniLM itself truncates to ~256 tokens (~1000 chars of code)
-  batch_size: 64
-  trust_remote_code: false     # set true for some code embedders (e.g. jinaai/jina-embeddings-v2-base-code)
+  model: Qwen/Qwen3-Embedding-0.6B   # instruction-aware, trained on text + code; 'hashing' = offline stand-in
+  max_chars: 4000              # characters of "<path> <name>\n<code>" embedded per chunk (99% of Flask chunks fit)
+  max_seq_length: 1024         # token cap inside the embedder (keeps batches small on a T4)
+  batch_size: 16
+  trust_remote_code: false
+  # Questions are prefixed with this instruction; chunks are embedded as they are (Qwen3-Embedding's recommended use).
+  query_prompt: "Instruct: Given a question about a Python code repository, retrieve the code or documentation that answers it\nQuery:"
 
 retrieval:
-  k: 6                         # baseline: plain top-k (reproduces Check-in 1)
+  k: 6                         # baseline: plain top-k (textbook RAG, about half the budget)
   context_char_budget: 18000   # baseline_budget + structure: fill up to this many characters of context
   per_chunk_chars: 3000        # each chunk is truncated to this many characters in the prompt
   pool: 60                     # how many semantic hits to consider as candidates

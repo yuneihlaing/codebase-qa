@@ -44,7 +44,7 @@ def test_run_tag_refuses_changed_settings(tmp_path):
 
 
 def test_shipped_configs_load():
-    for name in ("default", "offline", "small_model"):
+    for name in ("default", "offline", "small_model", "minilm", "coderank"):
         load_config(ROOT / "configs" / f"{name}.yaml")
 
 
@@ -172,3 +172,51 @@ def test_query_set_outputs(bot, tmp_path):
 def test_local_swe_qa_ids_are_stable():
     q = load_swe_qa("flask")
     assert len(q) == 48 and q[0]["id"] == "flask-000" and q[-1]["id"] == "flask-047"
+
+
+# ------------------------------------------------------------------ query prompts (instruction-aware embedders)
+class _FakeST:
+    def __init__(self): self.calls = []
+    def encode(self, texts, **kw):
+        import numpy as np
+        self.calls.append((list(texts), kw.get("prompt")))
+        return np.ones((len(texts), 4), dtype="float32") / 2
+
+
+def test_query_prompt_only_on_questions():
+    from codeqa.embedding import SentenceTransformerEmbedder
+    e = SentenceTransformerEmbedder.__new__(SentenceTransformerEmbedder)
+    e.model, e.query_prompt = _FakeST(), "Instruct: find code\nQuery:"
+    e.encode(["def f(): pass"])
+    e.encode_queries(["where is f?"])
+    assert e.model.calls == [(["def f(): pass"], None), (["where is f?"], "Instruct: find code\nQuery:")]
+
+
+def test_retriever_embeds_questions_as_queries(toy_repo):
+    calls = []
+
+    class Spy(HashingEmbedder):
+        def encode_queries(self, texts):
+            calls.append(texts)
+            return super().encode_queries(texts)
+
+    chunks = chunk_repo(toy_repo)
+    emb = Spy()
+    store = IndexStore.build(chunks, emb, EmbedConfig(model="hashing"), show_progress=False)
+    Retriever(store, emb, RetrievalConfig()).baseline("render a template")
+    assert calls == [["render a template"]]
+
+
+def test_default_embedder_is_instruction_aware():
+    cfg = load_config(ROOT / "configs" / "default.yaml")
+    assert cfg.embed.model == "Qwen/Qwen3-Embedding-0.6B"
+    assert cfg.embed.query_prompt.startswith("Instruct: ") and cfg.embed.query_prompt.endswith("\nQuery:")
+    assert load_config(ROOT / "configs" / "minilm.yaml").embed.query_prompt == ""
+
+
+def test_retrieval_record_scores_without_an_answer(bot):
+    from codeqa.pipeline import retrieval_record
+    r = bot.retriever.retrieve("structure", "what does App.run do")
+    rec = retrieval_record({"reference": "See `src/toy/app.py`: App.run calls handle()."}, r, 3000)
+    s = score_record(rec)
+    assert s["ref_file_recall"] == 1.0 and s["answer_chars"] == 0

@@ -1,6 +1,6 @@
 """Retrieval strategies (Step 3). Every strategy returns a `Retrieval` so they can be swapped freely.
 
-  baseline          plain semantic top-k                                  (reproduces the Check-in 1 baseline)
+  baseline          plain semantic top-k                                  (textbook RAG)
   baseline_budget   semantic ranking, filled up to a character budget    (the *fair* control)
   code_seeds        like structure but with NO graph edges: top code chunks first, then semantic fill
                     (separates "prefer code over docs" from "follow the graph")
@@ -35,7 +35,7 @@ import numpy as np
 
 from .chunking import Chunk
 from .config import RetrievalConfig
-from .embedding import Embedder
+from .embedding import Embedder, encode_queries
 from .index import IndexStore
 from .structure import RepoGraph
 
@@ -78,7 +78,7 @@ class Retriever:
         self.store, self.embedder, self.cfg, self.graph = store, embedder, cfg, graph
 
     def _qvec(self, question: str) -> np.ndarray:
-        return self.embedder.encode([question])[0]
+        return encode_queries(self.embedder, [question])[0]
 
     def retrieve(self, strategy: str, question: str) -> Retrieval:
         if strategy == "baseline":

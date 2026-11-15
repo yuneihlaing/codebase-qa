@@ -10,8 +10,8 @@ requires-python = ">=3.10"
 dependencies = ["numpy", "pyyaml", "tqdm"]
 
 [project.optional-dependencies]
-retrieval = ["sentence-transformers", "faiss-cpu"]
-llm = ["torch", "transformers", "accelerate"]
+retrieval = ["sentence-transformers>=2.7", "transformers>=4.51", "faiss-cpu"]
+llm = ["torch", "transformers>=4.51", "accelerate"]
 data = ["datasets"]
 judge = ["google-genai", "anthropic"]
 ui = ["gradio"]

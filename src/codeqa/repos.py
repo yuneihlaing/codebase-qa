@@ -1,8 +1,8 @@
 """Repository registry + cloning.
 
 SWE-QA questions are written against specific repositories, so every repo is checked out at the commit the
-benchmark authors used. The commits come from repo_commit.txt in https://github.com/peng-weihan/SWE-QA-Bench
-(Flask's matches the Check-in 1 notebook). The last three repos were added in the benchmark's second version.
+benchmark authors used. The commits come from repo_commit.txt in https://github.com/peng-weihan/SWE-QA-Bench.
+The last three repos were added in the benchmark's second version.
 """
 from __future__ import annotations
 

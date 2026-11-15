@@ -1,0 +1,9 @@
+# Alternative embedder for the retrieval comparison (scripts/compare_retrieval.py):
+# a small general-English sentence model, no query instruction, 256-token limit.
+extends: default.yaml
+embed:
+  model: sentence-transformers/all-MiniLM-L6-v2
+  max_chars: 2000
+  max_seq_length: null
+  batch_size: 64
+  query_prompt: ""
