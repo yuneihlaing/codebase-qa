@@ -1,0 +1,24 @@
+# Core (needed by everything, including the tests)
+numpy
+pyyaml
+tqdm
+pytest
+
+# Retrieval
+sentence-transformers
+faiss-cpu          # optional: code falls back to NumPy if missing
+
+# Local generator LLM (GPU recommended; Colab T4 works for Qwen2.5-Coder-3B)
+torch
+transformers
+accelerate
+
+# SWE-QA from HuggingFace (optional: the questions also ship in data/swe_qa/)
+datasets
+
+# Optional LLM-judge backends (install only the one you use)
+google-genai
+anthropic
+
+# Optional web UI for demos / peer testing (scripts/app.py)
+gradio

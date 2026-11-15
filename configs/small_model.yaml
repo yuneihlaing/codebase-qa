@@ -1,0 +1,7 @@
+# Second generator for the model comparison (smaller vs. larger model; same retrieval).
+# Run it under its own tag so the results never mix with the default 3B run:
+#   python scripts/run_experiment.py --repo flask --strategy baseline_budget structure --config configs/small_model.yaml --tag qwen1.5b
+#   python scripts/evaluate.py --repo flask --strategies default/structure qwen1.5b/structure --base default/structure
+extends: default.yaml
+llm:
+  model: Qwen/Qwen2.5-Coder-1.5B-Instruct

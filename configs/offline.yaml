@@ -1,0 +1,14 @@
+# Runs the whole pipeline with no GPU, no model downloads and no API keys:
+# a hashing embedder instead of MiniLM and an "echo" generator that just repeats the prompt.
+# Use it to check that everything is wired up (unit-test style), NOT to report results.
+#   python scripts/prepare_repo.py --repo flask --config configs/offline.yaml
+#   python scripts/ask.py --repo flask --config configs/offline.yaml "Where is url_for defined?"
+extends: default.yaml
+results_dir: results_offline   # kept apart so smoke-test answers never mix with real results
+reports_dir: reports_offline
+embed:
+  model: hashing
+llm:
+  backend: echo
+judge:
+  backend: echo

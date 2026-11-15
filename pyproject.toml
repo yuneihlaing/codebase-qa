@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codeqa"
+version = "0.1.0"
+description = "LLM assistant for codebase Q&A: semantic RAG baseline vs. structure-aware retrieval, evaluated on SWE-QA"
+requires-python = ">=3.10"
+dependencies = ["numpy", "pyyaml", "tqdm"]
+
+[project.optional-dependencies]
+retrieval = ["sentence-transformers", "faiss-cpu"]
+llm = ["torch", "transformers", "accelerate"]
+data = ["datasets"]
+judge = ["google-genai", "anthropic"]
+ui = ["gradio"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

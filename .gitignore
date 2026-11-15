@@ -1,0 +1,12 @@
+repos/
+artifacts/
+results/
+reports/
+results_offline/
+reports_offline/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.env
+.venv/
+README_details.md

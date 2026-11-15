@@ -1,0 +1,49 @@
+# Every field here maps 1:1 to a dataclass in src/codeqa/config.py.
+# Anything you omit falls back to the dataclass default.
+# Other config files can start with `extends: default.yaml` and override only what changes.
+repos_dir: repos
+artifacts_dir: artifacts
+results_dir: results           # results/<tag>/...  (see --tag in the scripts)
+reports_dir: reports           # reports/<tag>/...
+
+chunk:
+  max_class_lines: 80          # classes longer than this are split into a header chunk + one chunk per method
+  window: 40                   # docs/config files: lines per window
+  overlap: 10                  #                    lines shared by consecutive windows
+  include_module_code: false   # ablation: also index top-level statements that sit after the first def
+
+embed:
+  model: sentence-transformers/all-MiniLM-L6-v2   # 'hashing' = offline bag-of-subwords embedder (tests/smoke runs)
+  max_chars: 2000              # note: MiniLM itself truncates to ~256 tokens (~1000 chars of code)
+  batch_size: 64
+  trust_remote_code: false     # set true for some code embedders (e.g. jinaai/jina-embeddings-v2-base-code)
+
+retrieval:
+  k: 6                         # baseline: plain top-k (reproduces Check-in 1)
+  context_char_budget: 18000   # baseline_budget + structure: fill up to this many characters of context
+  per_chunk_chars: 3000        # each chunk is truncated to this many characters in the prompt
+  pool: 60                     # how many semantic hits to consider as candidates
+  k_seed: 4                    # structure: seeds that are always kept and expanded through the graph
+  seed_from: code              # structure: 'code' = seeds are the top Python chunks (docs have no edges); 'any'
+  max_expansion: 8             # structure: max chunks added because of graph edges
+  reserve_expansion: 4         # structure: best graph neighbours placed right after the seeds (0 = compete on score)
+  max_in_edges: 20             # structure: "called_by" neighbours per seed, the most question-similar ones
+  alpha: 0.5                   # weight of the seed's score vs. the neighbour's own similarity to the question
+  edge_weights:
+    call: 1.0
+    ref: 0.8
+    called_by: 0.7
+    parent: 0.9
+    header: 0.4
+
+llm:                           # the generator; identical for every strategy (fair comparison)
+  backend: hf                  # hf | gemini | anthropic | echo
+  model: Qwen/Qwen2.5-Coder-3B-Instruct
+  max_new_tokens: 700
+  thinking_budget: 0           # gemini only; 0 = no hidden "thinking" tokens eating max_new_tokens
+
+judge:                         # should be a DIFFERENT model family from the generator
+  backend: gemini              # gemini | anthropic | hf | echo
+  model: gemini-2.5-flash      # change to whatever your account offers
+  max_new_tokens: 600
+  thinking_budget: 0
