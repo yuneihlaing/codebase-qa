@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from codeqa.assistant import Assistant, SessionLog
+from codeqa.assistant import Assistant
 from codeqa.chunking import chunk_repo
 from codeqa.config import ChunkConfig, Config, EmbedConfig, RetrievalConfig, load_config
 from codeqa.dataset import load_swe_qa
@@ -287,13 +287,10 @@ def bot(toy_repo):
     return Assistant("toy", Config(), llm=EchoLLM(), retriever=retr)
 
 
-def test_assistant_answers_and_logs(bot, tmp_path):
+def test_assistant_answers_with_sources(bot):
     ans = bot.ask("what does App.run do", "structure")
     assert ans.text.startswith("[echo]") and ans.chunks and len(ans.sources()) == len(ans.chunks)
-    log = SessionLog(tmp_path / "u" / "alice.jsonl", "alice")
-    log.write(ans, rating="4", comment="ok")
-    row = json.loads((tmp_path / "u" / "alice.jsonl").read_text(encoding="utf-8"))
-    assert row["tester"] == "alice" and row["rating"] == "4" and row["sources"]
+    assert all(s["path"] for s in ans.sources())
 
 
 def test_injected_chunk_goes_first(bot):

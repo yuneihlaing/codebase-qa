@@ -5,11 +5,8 @@ The batch benchmark script (scripts/run_experiment.py) uses the same retriever +
 """
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
 
 from .chunking import Chunk
 from .config import Config
@@ -57,18 +54,3 @@ class Assistant:
             scores.insert(0, 0.0)
         text = answer_question(self.llm, question, chunks, self.cfg)
         return Answer(question, strategy, text, chunks, origins, scores, round(time.time() - t0, 2))
-
-
-class SessionLog:
-    """Append-only JSONL log of interactive sessions -> evidence for the peer/user testing section."""
-
-    def __init__(self, path: str | Path, tester: str):
-        self.path, self.tester = Path(path), tester
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-
-    def write(self, ans: Answer, rating: str | None = None, comment: str = "", **extra) -> None:
-        row = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"), "tester": self.tester,
-               "question": ans.question, "strategy": ans.strategy, "answer": ans.text, "rating": rating,
-               "comment": comment, "seconds": ans.seconds, "sources": ans.sources(), **extra}
-        with open(self.path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(row) + "\n")
