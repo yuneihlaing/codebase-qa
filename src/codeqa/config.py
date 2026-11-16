@@ -62,15 +62,17 @@ class LLMConfig:
     backend: str = "hf"
     model: str = "Qwen/Qwen2.5-Coder-3B-Instruct"
     max_new_tokens: int = 700
-    thinking_budget: int | None = 0  # Gemini 2.5 only: 0 turns "thinking" off so it can't eat max_new_tokens
+    thinking_budget: int | None = 0  # Gemini 2.x only: 0 turns "thinking" off so it can't eat max_new_tokens
 
 
 @dataclass
 class JudgeConfig:
     backend: str = "gemini"
-    model: str = "gemini-2.5-flash"
-    max_new_tokens: int = 600
-    thinking_budget: int | None = 0
+    model: str = "gemini-3.5-flash-lite"  # override for one run with the JUDGE_MODEL environment variable
+    max_new_tokens: int = 600             # length of the visible reply (thinking gets extra room on top)
+    thinking_level: str | None = "low"    # Gemini 3+: minimal | low | medium | high (not every model has all)
+    thinking_budget: int | None = None    # Gemini 2.x only (older models); ignored by Gemini 3+
+    requests_per_minute: float | None = None   # pace API calls to stay under the project's RPM limit
 
 
 @dataclass

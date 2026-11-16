@@ -12,6 +12,10 @@ Paired comparisons are made against --base. By default that is `baseline_budget`
 the same context budget as `structure`, so it is the fair control. (Plain `baseline` gets half the context.)
 
 Writes reports/<--tag>/summary_<repo>.md and prints it.
+
+Judge replies are saved in reports/<--tag>/judge_cache_<repo>.jsonl as they arrive. If the judge stops (e.g. the
+free daily quota ran out), the deterministic part of the report is still written; run the same command again
+later and it continues where it stopped. Use JUDGE_MODEL=<name> to try another judge model for one run.
 """
 import argparse
 import json
@@ -20,7 +24,7 @@ from pathlib import Path
 
 from codeqa.config import load_config
 from codeqa.eval.deterministic import aggregate, score_record
-from codeqa.eval.judge import DIMENSIONS, judge_pairwise, judge_pointwise
+from codeqa.eval.judge import DIMENSIONS, CachedLLM, judge_pairwise, judge_pointwise
 from codeqa.eval.stats import paired_bootstrap, win_tie_loss
 from codeqa.llm import make_judge
 from codeqa.runs import DEFAULT_TAG, reports_dir, results_dir
@@ -89,14 +93,37 @@ def main():
 
     out = reports_dir(cfg, a.tag)
     out.mkdir(parents=True, exist_ok=True)
+    judge_error = None
     if a.judge or a.pairwise:
-        judge = make_judge(cfg.judge)
+        try:
+            judge_section(a, cfg, out, res, names, base, others, ids, lines)
+        except Exception as e:                      # keep the deterministic results even if the judge fails
+            judge_error = e
+            lines += ["", f"**LLM judge stopped early:** {type(e).__name__}: {str(e)[:300]}",
+                      "Replies received so far are saved in "
+                      f"`{out / f'judge_cache_{a.repo}.jsonl'}`; run the same command again to continue."]
+
+    (out / f"summary_{a.repo}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+    print(f"\nsaved {out / f'summary_{a.repo}.md'}")
+    if judge_error is not None:
+        sys.exit(f"\nerror: the LLM judge stopped: {judge_error}")
+
+
+def judge_section(a, cfg, out, res, names, base, others, ids, lines):
+    """Pointwise and/or pairwise LLM-judge results, appended to `lines`."""
+    raw = make_judge(cfg.judge)
+    label = f"{cfg.judge.backend}:{raw.name}|level={cfg.judge.thinking_level}|budget={cfg.judge.thinking_budget}"
+    judge = CachedLLM(raw, out / f"judge_cache_{a.repo}.jsonl", label)
+    planned = (len(names) * len(ids) if a.judge else 0) + (2 * len(others) * len(ids) if a.pairwise else 0)
+    print(f"[judge] {cfg.judge.backend}:{raw.name}: up to {planned} requests "
+          f"({len(judge.cache)} replies already saved will be reused)", file=sys.stderr)
     if a.judge:
         jr = {s: {i: judge_pointwise(judge, res[s][i]["question"], str(res[s][i]["reference"]),
                                      res[s][i]["answer"], cfg.judge.max_new_tokens) for i in ids}
               for s in names}
         (out / f"judge_pointwise_{a.repo}.json").write_text(json.dumps(jr, indent=2), encoding="utf-8")
-        lines += ["", f"## LLM judge (1-5, pointwise; judge = {cfg.judge.backend}:{cfg.judge.model})", "",
+        lines += ["", f"## LLM judge (1-5, pointwise; judge = {cfg.judge.backend}:{raw.name})", "",
                   "| dimension | " + " | ".join(names) + " |", "|---|" + "---|" * len(names)]
         for d in (*DIMENSIONS, "overall"):
             row = []
@@ -113,7 +140,7 @@ def main():
                 lines.append(f"\n`{s}` vs `{base}` overall: {b['mean_diff']:+.3f} "
                              f"[{b['ci_low']:+.3f}, {b['ci_high']:+.3f}] (n={b['n']})")
     if a.pairwise:
-        lines += ["", "## Pairwise judge (both orders; disagreement counted as tie)", ""]
+        lines += ["", f"## Pairwise judge (both orders; disagreement counted as tie; judge = {raw.name})", ""]
         for s in others:
             tally = {"A": 0, "B": 0, "tie": 0, "invalid": 0}
             for i in ids:
@@ -121,10 +148,7 @@ def main():
                                      res[base][i]["answer"], res[s][i]["answer"], cfg.judge.max_new_tokens)] += 1
             lines.append(f"- `{base}` wins {tally['A']}, `{s}` wins {tally['B']}, ties {tally['tie']}, "
                          f"unparsable {tally['invalid']}")
-
-    (out / f"summary_{a.repo}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("\n".join(lines))
-    print(f"\nsaved {out / f'summary_{a.repo}.md'}")
+    print(f"[judge] done: {judge.calls} API calls, {judge.hits} replies reused", file=sys.stderr)
 
 
 if __name__ == "__main__":

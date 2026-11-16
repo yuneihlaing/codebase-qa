@@ -16,7 +16,7 @@ happens after Y is called, what breaks if I change Z.* The prototype is evaluate
 **Locally:**
 ```bash
 pip install -e ".[retrieval,llm,judge,ui,dev]"
-python -m pytest -q                                   # 65 tests, ~1 s, no GPU/network
+python -m pytest -q                                   # 73 tests, ~2 s, no GPU/network
 python scripts/prepare_repo.py --repo flask           # clone @ pinned commit, chunk (1409), embed, graph
 python scripts/compare_retrieval.py --repo flask --configs configs/default.yaml configs/minilm.yaml configs/coderank.yaml
 python scripts/ask.py --repo flask "What happens after Flask.wsgi_app is called?"   # use the assistant
@@ -36,7 +36,7 @@ to check that the pipeline runs; those outputs are not results.
 | Python `ast` | splits code into functions / classes / methods and extracts imports, calls and references |
 | Qwen3-Embedding-0.6B + FAISS | semantic search over chunks (questions carry a task instruction) |
 | Qwen2.5-Coder-3B-Instruct (local, T4) | generator, identical for every configuration |
-| Gemini 2.5 Flash (API) | LLM judge for the benchmark (different model family from the generator) |
+| Gemini 3.5 Flash-Lite (API) | LLM judge for the benchmark (different model family from the generator); `JUDGE_MODEL` overrides it for one run |
 | SWE-QA benchmark (`data/swe_qa/`, Apache-2.0) | 48 Flask questions with reference answers |
 
 ## System design
@@ -64,7 +64,7 @@ question ─► semantic search (Qwen3-Embedding + FAISS, top 60)
 | Structure retrieval | top code chunks as seeds + 4 reserved slots for graph neighbours | seeds of any kind; neighbours compete on score | without these, graph neighbours almost never reached the context (offline check) |
 | Context budget | 18,000 characters, at most 3,000 per chunk, same for every strategy | top-k only | equal budgets make the comparison fair; 99% of chunks are under 3,000 characters |
 | Generator | Qwen2.5-Coder-3B-Instruct, greedy, 700 tokens | 1.5B (optional run); 7B; hosted APIs | code-trained and instruction-tuned, fits a free T4 with room for the prompt; local + greedy = reproducible and free |
-| Judge | Gemini 2.5 Flash; pointwise + pairwise in both orders | a Qwen judge; humans only | a different family avoids self-preference; swapping order cancels position bias; humans grade the 36 hand-written items |
+| Judge | Gemini 3.5 Flash-Lite, thinking level `low`; pointwise + pairwise in both orders; replies cached | Gemini 2.5 Flash (retired for new API keys); Gemini 3.8 Flash (free tier: 20 requests/day); a Qwen judge; humans only | a different family avoids self-preference; swapping order cancels position bias; Google positions 3.5 Flash-Lite as a replacement for 2.5 Flash, and its free tier (500 requests/day) covers the ~336 judge requests in one day; the cache lets a stopped run resume; humans grade the 36 hand-written items |
 | Statistics | paired bootstrap, 95% interval | paired t-test | no normality assumption for bounded, tie-heavy per-question scores |
 | Interface | terminal (`ask.py`) + Gradio page (`app.py`) | Streamlit; notebook only | a Gradio share link from Colab lets classmates test remotely |
 

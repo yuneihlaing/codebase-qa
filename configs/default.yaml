@@ -43,10 +43,14 @@ llm:                           # the generator; identical for every strategy (fa
   backend: hf                  # hf | gemini | anthropic | echo
   model: Qwen/Qwen2.5-Coder-3B-Instruct
   max_new_tokens: 700
-  thinking_budget: 0           # gemini only; 0 = no hidden "thinking" tokens eating max_new_tokens
+  thinking_budget: 0           # Gemini 2.x only; 0 = no hidden "thinking" tokens eating max_new_tokens
 
 judge:                         # should be a DIFFERENT model family from the generator
   backend: gemini              # gemini | anthropic | hf | echo
-  model: gemini-2.5-flash      # change to whatever your account offers
-  max_new_tokens: 600
-  thinking_budget: 0
+  model: gemini-3.5-flash-lite # free tier: 15 requests/min, 500/day (3.8 Flash: 5/min, 20/day); a full judge
+                               # run is ~336 requests. Google retires models: see
+                               # `python scripts/list_gemini_models.py flash`; JUDGE_MODEL overrides for one run
+  max_new_tokens: 600          # visible reply; Gemini 3 thinking gets extra room on top
+  thinking_level: low          # Gemini 3+: minimal | low | medium | high (thinking cannot be switched off)
+  thinking_budget: null        # Gemini 2.x only (0 = thinking off); never sent together with thinking_level
+  requests_per_minute: 14      # stay just under the free tier's 15/min; set null when billing is on

@@ -17,7 +17,7 @@ accelerate
 datasets
 
 # Optional LLM-judge backends (install only the one you use)
-google-genai
+google-genai>=1.51   # 1.51 added thinking_level, needed by Gemini 3 models
 anthropic
 
 # Optional web UI for demos / peer testing (scripts/app.py)

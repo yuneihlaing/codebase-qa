@@ -5,12 +5,16 @@ Good practice baked in:
   * the judge should be a *different model family* than the generator (self-preference bias)
   * pairwise comparisons are run in BOTH orders; disagreement => tie (position bias)
   * the judge is told to ignore length and formatting
+  * every reply is saved (CachedLLM), so a run stopped by an API limit resumes and reports can be rebuilt
 Always spot-check ~20 judgements by hand before trusting the numbers.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import sys
+from pathlib import Path
 
 from ..llm import LLM
 
@@ -95,3 +99,49 @@ def judge_pairwise(judge: LLM, question: str, reference: str, ans_a: str, ans_b:
         return "invalid"
     second = {"A": "B", "B": "A", "tie": "tie"}[second_raw]
     return first if first == second else "tie"
+
+
+class CachedLLM:
+    """Wraps the judge so each reply is written to a JSONL file the moment it arrives.
+
+    Running the same evaluation again reads replies from the file instead of calling the API, so:
+      * a run stopped by a free-tier limit continues where it stopped (nothing already paid for is lost);
+      * the report can be rebuilt for free, with exactly the same judge replies.
+    The key covers `label` (model and thinking settings) and the exact prompt, so changing the judge or an
+    answer asks again. Empty replies are not saved, so they are retried next time.
+    """
+
+    def __init__(self, llm: LLM, path: str | Path, label: str = ""):
+        self.llm, self.path, self.label = llm, Path(path), label or llm.name
+        self.name = llm.name
+        self.cache: dict[str, str] = {}
+        self.hits = self.calls = 0
+        if self.path.exists():
+            with open(self.path, encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue                    # e.g. a last line cut off when Colab disconnected
+                    self.cache[r["key"]] = r["reply"]
+
+    def _key(self, system: str, user: str, max_new_tokens: int) -> str:
+        raw = json.dumps([self.label, system, user, max_new_tokens], ensure_ascii=False)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def generate(self, system: str, user: str, max_new_tokens: int = 700) -> str:
+        key = self._key(system, user, max_new_tokens)
+        if key in self.cache:
+            self.hits += 1
+            return self.cache[key]
+        reply = self.llm.generate(system, user, max_new_tokens)
+        self.calls += 1
+        if reply.strip():
+            self.cache[key] = reply
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"key": key, "judge": self.label, "reply": reply}, ensure_ascii=False) + "\n")
+        if self.calls % 10 == 0:
+            print(f"[judge] {self.calls} API calls so far, {self.hits} replies reused from {self.path.name}",
+                  file=sys.stderr)
+        return reply
